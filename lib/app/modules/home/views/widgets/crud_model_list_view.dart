@@ -11,25 +11,6 @@ class CrudModelListView extends StatefulWidget {
 }
 
 class CrudModelListViewState extends State<CrudModelListView> {
-  /// ตัวควบคุม [ExpansionTile]
-  final Map<CrudModel<String>, ExpansionTileController> _expansionTileControllers = {};
-
-  /// ต้องมี widget key สำหรับ [ExpansionTile] ด้วย เนื่องจากเวลาลบรายการ มีบั๊คที่ทำให้รายการถถัดไปจากรายการที่ลบ
-  /// จะแสดง UI เปิดแท็บอยู่ ต้องระบุ key ให้สอดคล้องกับรายการ CRUD
-  final _expansionTileKeys = <CrudModel<String>, GlobalKey>{};
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    _expansionTileControllers.clear();
-    _expansionTileKeys.clear();
-    super.dispose();
-  }
-
   HomeController get controller => Get.find<HomeController>();
 
   @override
@@ -47,20 +28,12 @@ class CrudModelListViewState extends State<CrudModelListView> {
         itemCount: controller.getLength(),
         itemBuilder: (context, index) {
           final d = controller.readItem(index);
-          final expansionTileController = _expansionTileControllers[d] ??= ExpansionTileController();
+          final expansionTileController = controller.getExpansionTileController(d);
 
           return ExpansionTile(
-            key: _expansionTileKeys[d] ??= GlobalKey(),
+            key: controller.getExpansionTileKey(d),
             controller: expansionTileController,
-            onExpansionChanged: (expanded) {
-              if (expanded) {
-                for (final c in _expansionTileControllers.values) {
-                  if (c != expansionTileController) {
-                    c.collapse();
-                  }
-                }
-              }
-            },
+            onExpansionChanged: (_) => controller.collapseOtherExpansionTiles(expansionTileController),
             title: Text(d.data),
             children: [
               Container(
@@ -75,12 +48,7 @@ class CrudModelListViewState extends State<CrudModelListView> {
                           showDialog(
                             context: context,
                             barrierDismissible: false,
-                            builder: (context) => CrudUpdatingDialog(
-                              index: index,
-                              onUpdate: () {
-                                _removeExpansionTilesWhenUpdated(d);
-                              },
-                            ),
+                            builder: (context) => CrudUpdatingDialog(index: index),
                           );
                         },
                       ),
@@ -92,12 +60,8 @@ class CrudModelListViewState extends State<CrudModelListView> {
                         label: const Text('Delete'),
                         onPressed: () => showDialog(
                           context: context,
-                          builder: (context) => CrudDeletingDialog(
-                            index: index,
-                            onDelete: () {
-                              _removeExpansionTilesWhenUpdated(d);
-                            },
-                          ),
+                          barrierDismissible: false,
+                          builder: (context) => CrudDeletingDialog(index: index),
                         ),
                       ),
                     ),
@@ -109,12 +73,5 @@ class CrudModelListViewState extends State<CrudModelListView> {
         },
       );
     });
-  }
-
-  /// จะต้องลบ [_expansionTileKeys] และ [_expansionTileControllers]  ประจำรายการ [model] ก่อน
-  /// เพื่อป้องกันการเรียกใช้ซ้ำหลังจากที่รายการไม่ได้ใช้งานแล้ว
-  void _removeExpansionTilesWhenUpdated(CrudModel<String> model) {
-    _expansionTileKeys.remove(model);
-    _expansionTileControllers.remove(model);
   }
 }

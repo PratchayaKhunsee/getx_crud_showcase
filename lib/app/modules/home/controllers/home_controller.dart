@@ -1,9 +1,15 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../models/crud_model.dart';
 import '../repositories/home_repository.dart';
 
-class HomeController extends GetxController {
+part 'mixins/crud_model_list_mixin.dart';
+part 'mixins/crud_creating_dialog_mixin.dart';
+part 'mixins/crud_updating_dialog_mixin.dart';
+part 'mixins/crud_deleting_dialog_mixin.dart';
+
+class HomeController extends GetxController with CrudModelListMixin, CrudCreatingDialogMixin, CrudUpdatingDialogMixin, CrudDeletingDialogMixin {
   final RxBool _isReady = false.obs;
   final RxList<CrudModel<String>> _models = <CrudModel<String>>[].obs;
 
@@ -27,77 +33,101 @@ class HomeController extends GetxController {
   }
 
   /// สร้าง
-  Future<CrudSubmissionResponse> createItem(String data) async {
-    final created = CrudModel(data);
+  Future<void> createItem() async {
+    final created = CrudModel(_cTxtCtrl.text);
     final text = created.toString();
 
     if (text.isEmpty) {
-      throw CrudSubmissionErrorResponseException('Data is empty');
+      _cErrMsg.value = 'Data is empty';
+      _cPopState.value = true;
+      return;
     } else if (text.length > 24) {
-      throw CrudSubmissionErrorResponseException('Data can only be no more than 24 characters');
+      _cErrMsg.value = 'Data can only be no more than 24 characters';
+      _cPopState.value = true;
+      return;
     } else if (RegExp('[^0-9A-Za-z ]').hasMatch(text)) {
-      throw CrudSubmissionErrorResponseException('Data can only be A-Z, a-z, 0-9 and space.');
+      _cErrMsg.value = 'Data can only be A-Z, a-z, 0-9 and space.';
+      _cPopState.value = true;
+      return;
     }
 
     final list = [..._models, created];
     final success = await Get.find<HomeRepository>().write(list.map((e) => e.toString()).toList());
 
     if (!success) {
-      return CrudSubmissionResponse(success: false, data: null);
+      _cErrMsg.value = 'Error, try again';
+      _cPopState.value = true;
+      return;
     }
 
     _models.value = list;
-    return CrudSubmissionResponse(success: true, data: null);
+    Get.until((route) => route.isFirst);
   }
 
   /// อ่าน
   CrudModel<String> readItem(int index) => _models[index];
 
   /// แก้ไข
-  Future<CrudSubmissionResponse> updateItem(int index, String data) async {
+  Future<void> updateItem(int index) async {
+    final data = _uTxtCtrl.text;
     if (index >= 0 && index < _models.length && _models[index].data != data) {
-      final text = data.toString();
+      final text = data;
 
       if (text.isEmpty) {
-        throw CrudSubmissionErrorResponseException('Data is empty');
+        _uErrMsg.value = 'Data is empty';
+        _uPopState.value = true;
+        return;
       } else if (text.length > 24) {
-        throw CrudSubmissionErrorResponseException('Data can only be no more than 24 characters');
+        _uErrMsg.value = 'Data can only be no more than 24 characters';
+        _uPopState.value = true;
+        return;
       } else if (RegExp('[^0-9A-Za-z ]').hasMatch(text)) {
-        throw CrudSubmissionErrorResponseException('Data can only be A-Z, a-z, 0-9 and space.');
+        _uErrMsg.value = 'Data can only be A-Z, a-z, 0-9 and space.';
+        _uPopState.value = true;
+        return;
       }
 
+      final target = _models[index];
+      final updated = target.copyWith(data);
       final list = _models.toList()
         ..removeAt(index)
-        ..insert(index, _models[index].copyWith(data));
+        ..insert(index, updated);
 
       final success = await Get.find<HomeRepository>().write(list.map((e) => e.toString()).toList());
 
       if (!success) {
-        return CrudSubmissionResponse(success: false, data: null);
+        _uErrMsg.value = 'Error, try again';
+        _uPopState.value = true;
+        return;
       }
 
       _models.value = list;
-      return CrudSubmissionResponse(success: true, data: null);
+      _removeTargetExpansionTiles(target);
+      Get.until((route) => route.isFirst);
+    } else {
+      throw RangeError('Out of range: $index');
     }
-
-    throw RangeError('Out of range: $index');
   }
 
   /// ลบ
-  Future<CrudSubmissionResponse> deleteItem(int index) async {
+  Future<void> deleteItem(int index) async {
     if (index >= 0 && index < _models.length) {
-      final list = _models.toList()..removeAt(index);
+      final list = _models.toList();
+      final deleted = list.removeAt(index);
 
       final success = await Get.find<HomeRepository>().write(list.map((e) => e.toString()).toList());
       if (!success) {
-        return CrudSubmissionResponse(success: false, data: null);
+        _dErrMsg.value = 'Error, try again';
+        _dPopState.value = true;
+        return;
       }
 
       _models.value = list;
-      return CrudSubmissionResponse(success: true, data: null);
+      _removeTargetExpansionTiles(deleted);
+      Get.until((route) => route.isFirst);
+    } else {
+      throw RangeError('Out of range: $index');
     }
-
-    throw RangeError('Out of range: $index');
   }
 
   int getLength() => _models.length;

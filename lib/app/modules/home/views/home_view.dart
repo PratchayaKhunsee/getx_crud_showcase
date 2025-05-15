@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/home_controller.dart';
-import '../models/crud_model.dart';
 
 part 'widgets/crud_creating_floating_button.dart';
 part 'widgets/crud_creating_dialog.dart';

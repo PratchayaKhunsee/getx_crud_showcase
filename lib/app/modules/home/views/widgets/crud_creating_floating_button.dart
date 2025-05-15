@@ -7,7 +7,11 @@ class CrudCreatingFloatingButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return FloatingActionButton(
       onPressed: () {
-        showDialog(context: context, barrierDismissible: false, builder: (context) => const CrudCreatingDialog());
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const CrudCreatingDialog(),
+        );
       },
       child: const Icon(Icons.add),
     );
